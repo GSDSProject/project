@@ -1,19 +1,21 @@
 from flask import Flask
+from flask_restx import Api, Resource, fields
 
 # Create a Flask app object
 app = Flask(__name__)
 
+api = Api(app, version='1.0', title='Brainstorming API',
+          description='API for brainstorming helper',
+          )
 
-# Define a route for the root URL
-@app.route('/')
-def hello_world():
-    return 'Hello, World!'
+ns = api.namespace('brainstorming', description='Brainstorming operations')
 
 
-# Define a route for /name/<name>
-@app.route('/name/<name>')
-def hello_name(name):
-    return f'Hello, {name}!'
+@ns.route('/')
+@ns.doc(params={'query': 'The query string'})
+class Brainstorming(Resource):
+    def get(self):
+        return {'hello': 'world'}
 
 
 # Run the Flask app
