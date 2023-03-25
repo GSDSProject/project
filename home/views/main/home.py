@@ -1,5 +1,6 @@
-from flask import Blueprint
+from flask import request, make_response
 from flask_restx import Resource, Api, Namespace
+import uuid
 
 ns = Namespace('brainstorming', description='Brainstorming operations')
 
@@ -7,4 +8,11 @@ ns = Namespace('brainstorming', description='Brainstorming operations')
 @ns.doc()
 class Brainstorming(Resource):
     def get(self):
-        return {'hello': 'world'}
+        user_id = request.cookies.get('user_id')
+        if not user_id:
+            user_id = str(uuid.uuid4())
+            response = make_response({'user_id': user_id})
+            response.set_cookie('user_id', user_id)
+        else:
+            response = make_response({'user_id': user_id})
+        return response
