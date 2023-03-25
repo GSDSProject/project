@@ -1,7 +1,5 @@
 from flask import Flask
 from flask_restx import Api
-from dotenv import load_dotenv
-
 from home.views.main import home
 from home.views.word import similarWord
 
