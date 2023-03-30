@@ -16,6 +16,7 @@ api = Api(
 def create_app():
     # Create a Flask home object
     app = Flask(__name__)
+    app.config['MONGO_URI'] = os.environ.get('MONGO_HOST')
     app.secret_key = os.environ.get('SECRET_KEY')
     api.init_app(app)
     api.add_namespace(ns=home.ns)
