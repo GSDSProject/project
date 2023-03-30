@@ -1,4 +1,4 @@
-from flask import request, make_response
+from flask import request, make_response, jsonify
 from flask_restx import Resource, Api, Namespace
 import uuid
 
@@ -16,3 +16,11 @@ class Brainstorming(Resource):
         else:
             response = make_response({'user_id': user_id})
         return response
+
+
+@ns.route('/db')
+@ns.doc()
+class CheckDB(Resource):
+    def get(self):
+        from home.db import db
+        return jsonify(list(db.conceptnet.find({}).limit(20)))
