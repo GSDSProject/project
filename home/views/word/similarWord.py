@@ -1,5 +1,5 @@
 from flask import jsonify
-from flask_restx import Resource, Api, Namespace
+from flask_restx import Resource, Namespace
 
 ns = Namespace('word', description='Word operations')
 
@@ -22,7 +22,7 @@ class FindWord(Resource):
         import requests
 
         # Set up the ConceptNet API endpoint
-        base_url = 'http://api.conceptnet.io/'
+        base_url = 'https://api.conceptnet.io/'
 
         # Build the API query URL
         query_url = base_url + 'c/en/' + word + '?rel=/r/RelatedTo&filter=/c/en'
