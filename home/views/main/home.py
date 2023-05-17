@@ -1,8 +1,10 @@
-from flask import request, make_response, jsonify
-from flask_restx import Resource, Api, Namespace
 import uuid
 
+from flask import request, make_response, jsonify
+from flask_restx import Resource, Namespace
+
 ns = Namespace('brainstorming', description='Brainstorming operations')
+
 
 @ns.route('/')
 @ns.doc()
