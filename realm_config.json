@@ -1,0 +1,8 @@
+{
+    "app_id": "mindmap-ndukx",
+    "config_version": 20210101,
+    "name": "mindmap",
+    "location": "IN-MB",
+    "provider_region": "gcp-asia-south1",
+    "deployment_model": "LOCAL"
+}
