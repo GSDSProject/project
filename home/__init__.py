@@ -20,8 +20,8 @@ def create_app():
     app = Flask(__name__)
     app.config['MONGO_URI'] = os.environ.get('MONGO_HOST')
     app.secret_key = os.environ.get('SECRET_KEY')
-    CORS(app)
     api.init_app(app)
+    CORS(app, supports_credentials=True)
     api.add_namespace(ns=home.ns)
     api.add_namespace(ns=similarWord.ns)
     return app
