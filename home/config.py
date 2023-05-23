@@ -5,7 +5,7 @@ from itertools import islice
 # Set up the ConceptNet API endpoint
 base_url = 'http://api.conceptnet.io/'
 
-
+# 주석
 # Define a function to get related words and weights
 def get_related_words_and_weights(word):
     # Build the API query URL
