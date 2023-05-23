@@ -2,53 +2,33 @@ import requests
 import numpy as np
 from itertools import islice
 
-# Set up the ConceptNet API endpoint
-base_url = 'http://api.conceptnet.io/'
-
-# 주석
 # Define a function to get related words and weights
-def get_related_words_and_weights(word):
-    # Build the API query URL
-    query_url = base_url + 'c/en/' + word + '?limit=100'
+def get_related_words(word, num=10, limit=1000):
+    url = f'http://api.conceptnet.io/c/en/{word}?rel=/r/RelatedTo&limit={limit}'
+    response = requests.get(url)
+    data = response.json()
 
-    # Send the GET request to the API
-    response = requests.get(query_url)
+    related_words = {}
+    for item in data['edges']:
+        if item['rel']['label'] == 'RelatedTo':
+            if item['start']['label'] != word:
+                if item['start']['label'] not in related_words:
+                    related_word = item['start']['label']
+                    weight = item['weight']
+            else:
+                if item['end']['label'] not in related_words:
+                    related_word = item['end']['label']
+                    weight = item['weight']
 
-    # Parse the JSON response
-    json_response = response.json()
+            related_words[related_word] = weight
 
-    # Extract the related words and their weights from the JSON response
-    related_words_and_weights = {}
-    for edge in json_response['edges']:
-        if edge['start']['language'] == 'en' and strip_article(edge['start']['label'].lower()) != word:
-            related_word = strip_article(edge['start']['label'].lower())
-            weight = edge['weight']
-            if related_word not in related_words_and_weights.keys():
-                related_words_and_weights[related_word] = weight
+    if len(related_words) > num:
+        related_words = dict(islice(related_words.items(), num))
 
-        elif edge['end']['language'] == 'en' and strip_article(edge['end']['label'].lower()) != word:
-            related_word = strip_article(edge['end']['label'].lower())
-            weight = edge['weight']
-            if related_word not in related_words_and_weights.keys():
-                related_words_and_weights[related_word] = weight
-
-    # Return the list of related words and their weights
-    return related_words_and_weights
-
-
-def strip_article(string):
-    if string.startswith('a '):
-        return string[2:]
-    elif string.startswith('an '):
-        return string[3:]
-    if string.startswith('the '):
-        return string[4:]
-    else:
-        return string
+    return related_words
 
 
 transition_matrix = {}
-
 
 def thompson_sampling(probs, N, alpha=1, beta=1):
     samples = [np.random.beta(alpha + prob, beta + 1 - prob) for prob in probs]
@@ -75,3 +55,45 @@ def recommend_next_words(current_word, transition_matrix, N):
 
     return recommended
 
+def main():
+    word = input("Enter the central word for your mind map: ")
+    many = int(input("How many related words?: "))
+
+    x = get_related_words(word, many)
+    y = dict(sorted(x.items(), key=lambda item: item[1], reverse=True))
+    z = dict(islice(y.items(), many))
+    total = sum(z.values())
+    result = {key: value / total for key, value in z.items()}
+    transition_matrix[word] = result
+
+    keysList = list(z.keys())
+
+    print(f"\nRelated words for '{word}':")
+    print(keysList, '\n')
+    input('Press Enter')
+
+    while True:
+        choose_word = input("Choose the Word (if there is no word you think, say 'none' or 'others')  ")
+
+        if choose_word == 'none':
+            break
+
+        elif choose_word == 'others':
+            choose_word = input("Write the word: ")
+
+        number_of_words = int(input("\n How many related words?: "))
+
+
+        x = get_related_words(choose_word, number_of_words)
+        y = dict(sorted(x.items(), key=lambda item: item[1], reverse=True))
+        z = dict(islice(y.items(), many))
+        total = sum(z.values())
+        result = {key: value / total for key, value in z.items()}
+        transition_matrix[choose_word] = result
+
+        current_word = choose_word
+        next_words = recommend_next_words(current_word, transition_matrix, number_of_words)
+
+        print(f"\nRelated words for '{choose_word}':")
+        print(next_words, '\n')
+        input('Press Enter')
