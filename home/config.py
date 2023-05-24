@@ -22,9 +22,6 @@ def get_related_words(word, num=10, limit=1000):
 
             related_words[related_word] = weight
 
-    if len(related_words) > num:
-        related_words = dict(islice(related_words.items(), num))
-
     return related_words
 
 
@@ -56,17 +53,29 @@ def recommend_next_words(current_word, transition_matrix, N):
     return recommended
 
 def main():
+    selected_words = []
     word = input("Enter the central word for your mind map: ")
-    many = int(input("How many related words?: "))
+    #many = int(input("How many related words?: "))
+    selected_words.append(word)
 
-    x = get_related_words(word, many)
+    x = {}
+    cnt = 0
+    x_temp = get_related_words(word)
+    for i in range(len(x_temp)):
+        if list(x_temp)[i] in selected_words:
+            continue
+        else:
+            x[list(x_temp)[i]] = list(x_temp.values())[i]
+            cnt += 1
+            if cnt == 5:
+                break
+
     y = dict(sorted(x.items(), key=lambda item: item[1], reverse=True))
-    z = dict(islice(y.items(), many))
-    total = sum(z.values())
-    result = {key: value / total for key, value in z.items()}
+    #z = dict(islice(y.items(), many))
+    total = sum(y.values())
+    result = {key: value / total for key, value in y.items()}
     transition_matrix[word] = result
-
-    keysList = list(z.keys())
+    keysList = list(y.keys())
 
     print(f"\nRelated words for '{word}':")
     print(keysList, '\n')
@@ -74,6 +83,7 @@ def main():
 
     while True:
         choose_word = input("Choose the Word (if there is no word you think, say 'none' or 'others')  ")
+        selected_words.append(choose_word)
 
         if choose_word == 'none':
             break
@@ -81,18 +91,32 @@ def main():
         elif choose_word == 'others':
             choose_word = input("Write the word: ")
 
-        number_of_words = int(input("\n How many related words?: "))
+            selected_words[-1] = choose_word
 
+        #number_of_words = int(input("\n How many related words?: "))
 
-        x = get_related_words(choose_word, number_of_words)
+        x = {}
+        cnt = 0
+        x_temp = get_related_words(choose_word)
+        for i in range(len(x_temp)):
+            if list(x_temp)[i] in selected_words:
+                continue
+            else:
+                x[list(x_temp)[i]] = list(x_temp.values())[i]
+                cnt += 1
+                if cnt == 5:
+                    break
+
         y = dict(sorted(x.items(), key=lambda item: item[1], reverse=True))
-        z = dict(islice(y.items(), many))
-        total = sum(z.values())
-        result = {key: value / total for key, value in z.items()}
+        #z = dict(islice(y.items(), many))
+
+
+        total = sum(y.values())
+        result = {key: value / total for key, value in y.items()}
         transition_matrix[choose_word] = result
 
         current_word = choose_word
-        next_words = recommend_next_words(current_word, transition_matrix, number_of_words)
+        next_words = recommend_next_words(current_word, transition_matrix, 5)
 
         print(f"\nRelated words for '{choose_word}':")
         print(next_words, '\n')
