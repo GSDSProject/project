@@ -22,9 +22,6 @@ def get_related_words(word, num=10, limit=1000):
 
             related_words[related_word] = weight
 
-    #if len(related_words) > num:
-    #    related_words = dict(islice(related_words.items(), num))
-
     return related_words
 
 
