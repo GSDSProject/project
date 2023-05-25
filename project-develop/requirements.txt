@@ -1,6 +1,0 @@
-flask
-gunicorn
-flask-restx
-flask-swagger-ui
-pymongo
-flask-pymongo
