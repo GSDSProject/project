@@ -3,7 +3,7 @@ import numpy as np
 from itertools import islice
 
 # Define a function to get related words and weights
-def get_related_words(word, num=10, limit=1000):
+def get_related_words(word, limit=1000):
     url = f'http://api.conceptnet.io/c/en/{word}?rel=/r/RelatedTo&limit={limit}'
     response = requests.get(url)
     data = response.json()
