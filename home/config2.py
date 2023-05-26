@@ -3,7 +3,7 @@ import numpy as np
 import random
 import networkx as nx
 import matplotlib.pyplot as plt
-
+# git
 # Load pre-trained Word2Vec model
 model = api.load('word2vec-google-news-300')
 
@@ -68,5 +68,4 @@ def mind_mapping():
             current_word = suggestions[index][0]
         except (ValueError, IndexError):
             print("Invalid input. Please try again.")
-
     return graph
