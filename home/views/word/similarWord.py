@@ -1,49 +1,26 @@
-from flask import jsonify
-from flask_restx import Resource, Namespace
+import random
 
-ns = Namespace('word', description='Word operations')
+import gensim.downloader as api
+import numpy as np
 
+# git
+# Load pre-trained Word2Vec model
+model = api.load('word2vec-google-news-300')
 
-def strip_article(string):
-    if string.startswith('a '):
-        return string[2:]
-    elif string.startswith('an '):
-        return string[3:]
-    if string.startswith('the '):
-        return string[4:]
-    else:
-        return string
+def most_similar_bandit(word, num_options=5, epsilon=0.1):
+    similar_words = model.most_similar(positive=[word], topn=num_options * 10)
+    options = random.sample(similar_words, num_options)
+    rewards = [0] * num_options
+    counts = [0] * num_options
 
+    for i in range(num_options):
+        if random.random() < epsilon:
+            choice = random.choice(range(num_options))
+        else:
+            choice = np.argmax(rewards)
 
-@ns.route('/<word>')
-@ns.doc({'parameters': [{'name': 'word', 'in': 'path', 'type': 'string', 'required': True}]})
-class FindWord(Resource):
-    def get(self, word):
-        import requests
+        option = options[choice]
+        counts[choice] += 1
+        rewards[choice] = model.similarity(word, option[0])
 
-        # Set up the ConceptNet API endpoint
-        base_url = 'https://api.conceptnet.io/'
-
-        # Build the API query URL
-        query_url = base_url + 'c/en/' + word + '?rel=/r/RelatedTo&filter=/c/en'
-
-        # Send the GET request to the API
-        response = requests.get(query_url)
-
-        # Parse the JSON response
-        json_response = response.json()
-
-        # Extract the related words and their weights from the JSON response
-        related_words_and_weights = {}
-        for edge in json_response['edges']:
-            if edge['start']['language'] == 'en' and strip_article(edge['start']['label'].lower()) != word:
-                related_word = strip_article(edge['start']['label'].lower())
-                weight = edge['weight']
-                if related_word not in related_words_and_weights.keys():
-                    related_words_and_weights[related_word] = weight
-            elif edge['end']['language'] == 'en' and strip_article(edge['end']['label'].lower()) != word:
-                related_word = strip_article(edge['end']['label'].lower())
-                weight = edge['weight']
-                if related_word not in related_words_and_weights.keys():
-                    related_words_and_weights[related_word] = weight
-        return jsonify(related_words_and_weights)
+    return [options[i] for i in np.argsort(rewards)[::-1]]
