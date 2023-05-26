@@ -1,107 +1,72 @@
-import requests
+import gensim.downloader as api
 import numpy as np
-from itertools import islice
+import random
+import networkx as nx
+import matplotlib.pyplot as plt
+# git
+# Load pre-trained Word2Vec model
+model = api.load('word2vec-google-news-300')
 
-# Define a function to get related words and weights
-def get_related_words(word, limit=1000):
-    url = f'http://api.conceptnet.io/c/en/{word}?rel=/r/RelatedTo&limit={limit}'
-    response = requests.get(url)
-    data = response.json()
+def most_similar_bandit(word, num_options=5, epsilon=0.1):
+    similar_words = model.most_similar(positive=[word], topn=num_options*10)
+    options = random.sample(similar_words, num_options)
+    rewards = [0] * num_options
+    counts = [0] * num_options
 
-    related_words = {}
-    for item in data['edges']:
-        if item['rel']['label'] == 'RelatedTo':
-            if item['start']['label'] != word:
-                if item['start']['label'] not in related_words:
-                    related_word = item['start']['label']
-                    weight = item['weight']
-            else:
-                if item['end']['label'] not in related_words:
-                    related_word = item['end']['label']
-                    weight = item['weight']
-
-            related_words[related_word] = weight
-
-    return related_words
-
-
-transition_matrix = {}
-
-def thompson_sampling(probs, N, alpha=1, beta=1):
-    samples = [np.random.beta(alpha + prob, beta + 1 - prob) for prob in probs]
-
-    # Find the indices of the top N maximum values
-    top_N_indices = np.argpartition(samples, -N)[-N:]
-
-    return top_N_indices
-
-
-def recommend_next_words(current_word, transition_matrix, N):
-    recommended = []
-    possible_words = transition_matrix.get(current_word, {})
-
-    if not possible_words:
-        return None
-
-    words = list(possible_words.keys())
-    probabilities = list(possible_words.values())
-
-    next_word_indices = thompson_sampling(probabilities, N)
-    for i in next_word_indices:
-        recommended.append(words[i])
-
-    return recommended
-
-def select_word(word, selected_words):
-    x = {}
-    cnt = 0
-    x_temp = get_related_words(word)
-    for i in range(len(x_temp)):
-        if list(x_temp)[i] in selected_words:
-            continue
+    for i in range(num_options):
+        if random.random() < epsilon:
+            choice = random.choice(range(num_options))
         else:
-            x[list(x_temp)[i]] = list(x_temp.values())[i]
-            cnt += 1
-            if cnt == 5:
-                break
+            choice = np.argmax(rewards)
 
-    y = dict(sorted(x.items(), key=lambda item: item[1], reverse=True))
-    #z = dict(islice(y.items(), many))
-    total = sum(y.values())
-    result = {key: value / total for key, value in y.items()}
-    transition_matrix[word] = result
+        option = options[choice]
+        counts[choice] += 1
+        rewards[choice] = model.similarity(word, option[0])
 
-    if len(selected_words) == 1:
-        next_words = list(y.keys())
-    else:
-        current_word = word
-        next_words = recommend_next_words(current_word, transition_matrix, 5)
+    return [options[i] for i in np.argsort(rewards)[::-1]]
 
-    return next_words
-
-def step(word, selected_words):
-    next_words = select_word(word, selected_words)
-    print(f"\nRelated words for '{word}':")
-    print(next_words, '\n')
-    input('Press Enter')
+def draw_mind_map(graph):
+    plt.figure(figsize=(16, 10))
+    pos = nx.spring_layout(graph, seed=42)
+    nx.draw(graph, pos, with_labels=True, node_color="skyblue", font_size=14, font_weight="bold", node_size=3000, alpha=0.8)
+    nx.draw_networkx_edge_labels(graph, pos, edge_labels={(n1, n2): f"{w:.2f}" for n1, n2, w in graph.edges(data="weight")}, font_size=12)
+    plt.title("Mind Map", fontsize=24)
+    plt.axis("off")
+    plt.show()
 
 
-def main():
-    selected_words = []
+def add_graph(graph, current_word):
+    print(f"\nSuggestions for '{current_word}':")
+    suggestions = most_similar_bandit(current_word)
 
-    word = input("Enter the central word for your mind map: ")
-    #many = int(input("How many related words?: "))
-    selected_words.append(word)
-    step(word, selected_words)
+    for i, (word, _) in enumerate(suggestions):
+        print(f"{i + 1}. {word}")
+        if not graph.has_node(word):
+            graph.add_node(word)
+        if not graph.has_edge(current_word, word):
+            graph.add_edge(current_word, word, weight=suggestions[i][1])
+    return suggestions
+
+def mind_mapping():
+    center_word = input("Enter the center word for brainstorming: ")
+    print("Enter 'exit' to finish the mind mapping process.")
+    print("Enter 'nothing' if you want to see more suggestions.")
+
+    current_word = center_word
+    graph = nx.Graph()
+    graph.add_node(center_word)
 
     while True:
-        word = input("Choose the Word (if there is no word you think, say 'none' or 'others')  ")
-        #number_of_words = int(input("\n How many related words?: "))
-        selected_words.append(word)
-
-        if word == 'none':
+        suggestions = add_graph(graph, current_word)
+        choice = input("Choose a word by entering its number or input 'nothing' or 'exit': ").strip()
+        if choice.lower() == "exit":
             break
-        elif word == 'others':
-            word = input("Write the word: ")
-            selected_words[-1] = word
-        step(word, selected_words)
+        elif choice.lower() == "nothing":
+            continue
+        try:
+            index = int(choice) - 1
+            current_word = suggestions[index][0]
+        except (ValueError, IndexError):
+            print("Invalid input. Please try again.")
+
+    return graph
