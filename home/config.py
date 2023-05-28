@@ -35,10 +35,7 @@ def draw_mind_map(graph):
     plt.show()
 
 
-def add_graph(graph, current_word):
-    print(f"\nSuggestions for '{current_word}':")
-    suggestions = most_similar_bandit(current_word)
-
+def add_graph(graph, current_word, suggestions):
     for i, (word, _) in enumerate(suggestions):
         print(f"{i + 1}. {word}")
         if not graph.has_node(word):
@@ -47,26 +44,33 @@ def add_graph(graph, current_word):
             graph.add_edge(current_word, word, weight=suggestions[i][1])
     return suggestions
 
-def mind_mapping():
-    center_word = input("Enter the center word for brainstorming: ")
-    print("Enter 'exit' to finish the mind mapping process.")
-    print("Enter 'nothing' if you want to see more suggestions.")
 
+def mind_mapping(center_word, exit_indicator=False):
     current_word = center_word
     graph = nx.Graph()
     graph.add_node(center_word)
 
+    while not exit_indicator:
+        suggestions = most_similar_bandit(current_word)
+        suggestions = add_graph(graph, current_word, suggestions)
+        yield graph, suggestions  # return the graph and the new suggestions at each step
+
+
+def human_feedback(center_word, choice, exit_indicator=False):
+    mind_map_generator = mind_mapping(center_word, exit_indicator)
+
     while True:
-        suggestions = add_graph(graph, current_word)
-        choice = input("Choose a word by entering its number or input 'nothing' or 'exit': ").strip()
-        if choice.lower() == "exit":
-            break
-        elif choice.lower() == "nothing":
-            continue
+        graph, suggestions = next(mind_map_generator)
+
         try:
             index = int(choice) - 1
             current_word = suggestions[index][0]
         except (ValueError, IndexError):
             print("Invalid input. Please try again.")
+
+        if exit_indicator:
+            break
+        else:
+            choice = input("Enter the next choice: ")  # This line should be replaced with appropriate front-end logic
 
     return graph
