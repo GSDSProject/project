@@ -1,6 +1,6 @@
-import requests
 import numpy as np
-from itertools import islice
+import requests
+
 
 def get_related_words(word, limit=1000):
     url = f'http://api.conceptnet.io/c/en/{word}?rel=/r/RelatedTo&limit={limit}'
@@ -23,12 +23,15 @@ def get_related_words(word, limit=1000):
 
     return related_words
 
+
 transition_matrix = {}
+
 
 def thompson_sampling(probs, N, alpha=1, beta=1):
     samples = [np.random.beta(alpha + prob, beta + 1 - prob) for prob in probs]
     top_N_indices = np.argpartition(samples, -N)[-N:]
     return top_N_indices
+
 
 def recommend_next_words(current_word, transition_matrix, N):
     recommended = []
@@ -44,6 +47,7 @@ def recommend_next_words(current_word, transition_matrix, N):
         recommended.append(words[i])
 
     return recommended
+
 
 def select_word(word, selected_words):
     x = {}
@@ -71,9 +75,11 @@ def select_word(word, selected_words):
 
     return next_words
 
+
 def mind_map_step(word, selected_words):
     next_words = select_word(word, selected_words)
     return next_words
+
 
 def user_input_handler(center_word, choice_word, selected_words):
     if choice_word == 'none':
