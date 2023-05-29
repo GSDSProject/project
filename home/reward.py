@@ -3,7 +3,7 @@ import requests
 import numpy as np
 from itertools import islice
 
-# MongoDB 연결 설정
+# MongoDB 연결 설정#
 mongodb_uri = "mongodb+srv://p4dsteam6:team6@cluster0.yvkcbg6.mongodb.net/"
 client = MongoClient(mongodb_uri)
 db = client['mindmapDB']
