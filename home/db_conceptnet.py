@@ -10,6 +10,7 @@ db = client['mindmapDB']
 collection = db['transition']
 
 def get_related_words(word, limit=1000):
+    word = word.lower()
     url = f'http://api.conceptnet.io/c/en/{word}?rel=/r/RelatedTo&limit={limit}'
     response = requests.get(url)
     data = response.json()
@@ -17,16 +18,10 @@ def get_related_words(word, limit=1000):
     related_words = {}
     for item in data['edges']:
         if item['rel']['label'] == 'RelatedTo':
-            if item['start']['label'] != word:
-                if item['start']['label'] not in related_words:
-                    related_word = item['start']['label']
-                    weight = item['weight']
-            else:
-                if item['end']['label'] not in related_words:
-                    related_word = item['end']['label']
-                    weight = item['weight']
-
-            related_words[related_word] = weight
+            related_word = item['start']['label'].lower() if item['start']['label'].lower() != word else item['end']['label'].lower()
+            if related_word not in related_words:
+                weight = item['weight']
+                related_words[related_word] = weight
 
     return related_words
 
