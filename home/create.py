@@ -3,13 +3,13 @@ import requests
 import numpy as np
 from itertools import islice
 
-# MongoDB 연결 설정#
+# MongoDB 연결 설정
 mongodb_uri = "mongodb+srv://p4dsteam6:team6@cluster0.yvkcbg6.mongodb.net/"
 client = MongoClient(mongodb_uri)
 db = client['mindmapDB']
 marketer_collection = db['marketer']
-developer_collection = db['developer_transition']
-designer_collection = db['designer_transition']
+developer_collection = db['developer']
+designer_collection = db['designer']
 collection = db['transition']
 
 def get_related_words(word, limit=1000):
@@ -33,7 +33,8 @@ def thompson_sampling(probs, N, alpha=1, beta=1):
     top_N_indices = np.argpartition(samples, -N)[-N:]
     return top_N_indices
 
-def recommend_next_words(current_word):
+
+def recommend_next_words(current_word, center_word, selected_words):
     recommended = []
     possible_words = collection.find_one({'word': current_word})
 
@@ -42,11 +43,20 @@ def recommend_next_words(current_word):
 
     words = list(possible_words['related_words'].keys())
     probabilities = list(possible_words['related_words'].values())
+
+    # Relating center_word (probabilities)
+    center_word_related_words = get_related_words(center_word)
+    for i, word in enumerate(words):
+        if word in center_word_related_words:
+            probabilities[i] *= center_word_related_words[word]
+
     next_word_indices = thompson_sampling(probabilities, len(words))
     for i in next_word_indices:
-        recommended.append(words[i])
+        if words[i] not in selected_words:
+            recommended.append(words[i])
 
     return recommended
+
 
 
 def select_word(word, selected_words, user_type):
