@@ -170,11 +170,12 @@ def measure_performance(recommended_words):
 #         return jsonify(suggestions)
 
 
-@ns.route('/center/<word>')
-@ns.doc({'parameters': [{'name': 'word', 'in': 'path', 'type': 'string', 'required': True}]})
+@ns.route('/center/<user_type>/<word>')
+@ns.doc({'parameters': [{'name': 'word', 'in': 'path', 'type': 'string', 'required': True},
+                        {'name': 'user_type', 'in': 'path', 'type': 'string', 'required': True}]})
 class centerWord(Resource):
-    def get(self, word):
-        suggestions = center_word(word)
+    def get(self, word, user_type):
+        suggestions = center_word(word, user_type)
         return jsonify(suggestions)
 
 
