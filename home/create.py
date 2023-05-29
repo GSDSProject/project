@@ -8,8 +8,8 @@ mongodb_uri = "mongodb+srv://p4dsteam6:team6@cluster0.yvkcbg6.mongodb.net/"
 client = MongoClient(mongodb_uri)
 db = client['mindmapDB']
 marketer_collection = db['marketer']
-developer_collection = db['developer_transition']
-designer_collection = db['designer_transition']
+developer_collection = db['developer']
+designer_collection = db['designer']
 collection = db['transition']
 
 def get_related_words(word, limit=1000):
