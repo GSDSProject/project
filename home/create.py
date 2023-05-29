@@ -33,7 +33,8 @@ def thompson_sampling(probs, N, alpha=1, beta=1):
     top_N_indices = np.argpartition(samples, -N)[-N:]
     return top_N_indices
 
-def recommend_next_words(current_word, center_word):
+
+def recommend_next_words(current_word, center_word, selected_words):
     recommended = []
     possible_words = collection.find_one({'word': current_word})
 
@@ -51,9 +52,11 @@ def recommend_next_words(current_word, center_word):
 
     next_word_indices = thompson_sampling(probabilities, len(words))
     for i in next_word_indices:
-        recommended.append(words[i])
+        if words[i] not in selected_words:
+            recommended.append(words[i])
 
     return recommended
+
 
 
 def select_word(word, selected_words, user_type):
