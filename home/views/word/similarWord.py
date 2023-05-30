@@ -181,7 +181,8 @@ class centerWord(Resource):
 
 list_item_model = ns.model('ListItem', {
     'selected_words': fields.List(fields.String, required=True, description='List of selected words'),
-    'center_word': fields.String(required=True, description='Center word')
+    'center_word': fields.String(required=True, description='Center word'),
+    'user_type': fields.String(required=True, description='User type')
 })
 
 
