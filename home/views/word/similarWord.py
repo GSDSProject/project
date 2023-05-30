@@ -1,142 +1,170 @@
-import numpy as np
+ort numpy as np
 import requests
 from flask import jsonify
 from flask_restx import Resource, Namespace, fields
 from pymongo import MongoClient
-
-# Load pre-trained Word2Vec model
-# model = api.load('word2vec-google-news-300')
+from random import sample
+import json
 
 # define namespace
 ns = Namespace('word', description='Word operations')
 
-# mongoDB
+
+# MongoDB 연결 설정
 mongodb_uri = "mongodb+srv://p4dsteam6:team6@cluster0.yvkcbg6.mongodb.net/"
 client = MongoClient(mongodb_uri)
-db = client['db']
-collection = db['transition_matrix']
+db = client['mindmapDB']
+collections = {
+    'marketer': db['marketer'],
+    'developer': db['developer'],
+    'designer': db['designer'],
+}
 
 
-def get_related_words(word, limit=1000):
-    url = f'http://api.conceptnet.io/c/en/{word}?rel=/r/RelatedTo&limit={limit}'
-    response = requests.get(url)
-    data = response.json()
-
-    related_words = {}
-    for item in data['edges']:
-        if item['rel']['label'] == 'RelatedTo':
-            if item['start']['label'] != word:
-                if item['start']['label'] not in related_words:
-                    related_word = item['start']['label']
-                    weight = item['weight']
-            else:
-                if item['end']['label'] not in related_words:
-                    related_word = item['end']['label']
-                    weight = item['weight']
-
-            related_words[related_word] = weight
-
-    return related_words
+def get_db():
+    client = MongoClient(mongodb_uri)
+    db = client['mindmapDB']
+    return db
 
 
-def thompson_sampling(probs, N, alpha=1, beta=1):
-    samples = [np.random.beta(alpha + prob, beta + 1 - prob) for prob in probs]
-
-    # Find the indices of the top N maximum values
-    top_N_indices = np.argpartition(samples, -N)[-N:]
-
-    return top_N_indices
+def get_collection(user_type):
+    if user_type in collections:
+        db = get_db()
+        return db[user_type]
 
 
-def recommend_next_words(current_word):
-    recommended = []
-    possible_words = collection.find_one({'word': current_word})
-
-    if not possible_words:
-        return None
-
-    words = list(possible_words['related_words'].keys())
-    probabilities = list(possible_words['related_words'].values())
-    next_word_indices = thompson_sampling(probabilities, len(words))
-    for i in next_word_indices:
-        recommended.append(words[i])
-
-    return recommended
-
-
-def select_word(word, selected_words):
-    x = {}
-    cnt = 0
-    x_temp = get_related_words(word)
-    for i in range(len(x_temp)):
-        if list(x_temp)[i] in selected_words:
-            continue
-        else:
-            x[list(x_temp)[i]] = list(x_temp.values())[i]
-            cnt += 1
-            if cnt == 5:
-                break
-
-    y = dict(sorted(x.items(), key=lambda item: item[1], reverse=True))
-    total = sum(y.values())
-    result = {key: value / total for key, value in y.items()}
-    collection.insert_one({'word': word, 'related_words': result})
-
-    if len(selected_words) == 1:
-        next_words = list(y.keys())
+def related_word(word, limit=100):
+    try:
+        word = word.lower()
+        url = f'http://api.conceptnet.io/c/en/{word}?rel=/r/RelatedTo&limit={limit}'
+        response = requests.get(url)
+        response.raise_for_status()  # Raises stored HTTPError, if one occurred.
+        data = response.json()
+    except (requests.HTTPError, ValueError) as err:
+        print(f'An error occurred: {err}')
+        return []
     else:
-        current_word = word
-        next_words = recommend_next_words(current_word)
-
-    return next_words
-
-
-def center_word(word):
-    selected_words = [word]
-    related_words = select_word(word, selected_words)
-    return related_words
+        related_words = []
+        for item in data['edges']:
+            if item['rel']['label'] == 'RelatedTo':
+                related = item['start']['label'].lower() if item['start']['label'].lower() != word else item['end']['label'].lower()
+                if related not in related_words:
+                    related_words.append(related)
+        return related_words
 
 
-def human_feedback(choice_word, selected_words):
-    if choice_word == 'none':
-        return None
-    elif choice_word not in selected_words:
-        choice_word = collection.find_one({'word': choice_word})
-        selected_words.append(choice_word)
-    return select_word(choice_word, selected_words)
+def store_word_and_related_words(word, user_type, limit=100):
+    collection = get_collection(user_type)
+    doc = collection.find_one({"word": word})
+    if doc is None:
+        params = {"successes": 1, "failures": 1}
+        doc = {
+            "word": word,
+            "params": params
+        }
+        collection.insert_one(doc)
+
+    related_words = related_word(word, limit)
+    for a_word in related_words:
+        doc = collection.find_one({"word": a_word})
+        if doc is None:
+            params = {"successes": 1, "failures": 1}
+            doc = {
+                "word": word,
+                "params": params
+            }
+            collection.insert_one(doc)
 
 
-# @ns.route('/gensim/<word>')
-# @ns.doc({'parameters': [{'name': 'word', 'in': 'path', 'type': 'string', 'required': True}]})
-# class GensimWord(Resource):
-#     def get(self, word):
-#         suggestions = most_similar_bandit(word)
-#         return jsonify(suggestions)
+def center_word(word, user_type, num_samples=10):
+    store_word_and_related_words(word, user_type, limit=100)
+    words = related_word(word, limit=100)
+    return sample(words, num_samples)
 
 
-@ns.route('/center/<word>')
-@ns.doc({'parameters': [{'name': 'word', 'in': 'path', 'type': 'string', 'required': True}]})
+def recommend_words(user_type, num_recommendations=10):
+    """
+    Recommend a list of words using Thompson Sampling.
+    """
+    collection = get_collection(user_type)
+    words = collection.find({})
+    word_samples = []
+    for word_doc in words:
+        word = word_doc["word"]
+        params = word_doc["params"]
+        sample = np.random.beta(params["successes"], params["failures"])
+        word_samples.append((word, sample))
+
+    word_samples.sort(key=lambda x: x[1], reverse=True)
+    recommended_words = [word for word, sample in word_samples[:num_recommendations]]
+    return recommended_words
+
+
+def get_word_params(word, user_type):
+    """
+    Get the parameters of a word for Thompson Sampling from the database.
+    If the word does not exist in the database, initialize it with 1 success and 1 failure.
+    """
+    collection = get_collection(user_type)
+    doc = collection.find_one({"word": word})
+    if doc is None:
+        params = {"successes": 1, "failures": 1}
+        doc = {
+            "word": word,
+            "params": params
+        }
+        collection.insert_one(doc)
+    else:
+        params = doc["params"]
+    return params
+
+
+def update_word_params(word, user_type, success):
+    """
+    Update the parameters of a word for Thompson Sampling in the database.
+    If success is True, increment the successes of the word.
+    If success is False, increment the failures of the word.
+    """
+    collection = get_collection(user_type)
+    params = get_word_params(word, user_type)
+    if success:
+        params["successes"] += 1
+    else:
+        params["failures"] += 1
+    collection.update_one({"word": word}, {"$set": {"params": params}})
+
+
+def process_feedback(recommended_words, user_type, selected_word):
+    """
+    Process the feedback of a user.
+    If the selected word is in the recommended words, consider it a success for that word.
+    """
+    success = (selected_word in recommended_words)
+    update_word_params(selected_word, user_type, success)
+
+
+
+
+@ns.route('/center/<user_type>/<word>')
+@ns.doc({'parameters': [{'name': 'word', 'in': 'path', 'type': 'string', 'required': True},
+                        {'name': 'user_type', 'in': 'path', 'type': 'string', 'required': True}]})
 class centerWord(Resource):
-    def get(self, word):
-        suggestions = center_word(word)
+    def get(self, word, user_type):
+        suggestions = center_word(word, user_type)
         return jsonify(suggestions)
 
 
 list_item_model = ns.model('ListItem', {
-    'selected_words': fields.List(fields.String, required=True, description='List of selected words')
+    'center_word': fields.String(required=True, description='Center word'),
+    'user_type': fields.String(required=True, description='User type')
 })
 
 
 @ns.route('/human/<choice_word>')
 @ns.doc({'parameters': [{'name': 'choice_word', 'in': 'path', 'type': 'string', 'required': True}]})
 class humanFeedback(Resource):
-
-    def get(self, choice_word):
-        suggestions = recommend_next_words(choice_word)
-        return jsonify(suggestions)
-
     @ns.expect(list_item_model)
     def post(self, choice_word):
-        selected_words = ns.payload['selected_words']
-        suggestions = human_feedback(choice_word, selected_words)
+        recommended_words = recommend_words(ns.payload['user_type'], num_recommendations=10)
+        suggestions = process_feedback(recommended_words, ns.payload['user_type'], choice_word)
         return jsonify(suggestions)
