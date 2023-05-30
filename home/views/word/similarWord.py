@@ -114,7 +114,7 @@ def center_word(word, user_type):
     return related_words
 
 
-def human_feedback(center_word, choice_word, selected_words):
+def human_feedback(center_word, choice_word, selected_words, user_type):
     if choice_word == 'none':
         update_reward(center_word,
                       -1)  # negative reward for the center_word as the user did not choose any of the recommendations
@@ -125,7 +125,7 @@ def human_feedback(center_word, choice_word, selected_words):
         if choice_word == 'others':
             choice_word = collection.find_one({'word': choice_word})
         selected_words.append(choice_word)
-        return mind_map_step(choice_word, selected_words)
+        return mind_map_step(choice_word, selected_words, user_type)
 
 
 def update_reward(word, reward_value):
@@ -192,5 +192,6 @@ class humanFeedback(Resource):
     @ns.expect(list_item_model)
     def post(self, choice_word):
         selected_words = ns.payload['selected_words']
-        suggestions = human_feedback(ns.payload['center_word'], choice_word, selected_words)
+        user_type = ns.payload['user_type']
+        suggestions = human_feedback(ns.payload['center_word'], choice_word, selected_words, user_type)
         return jsonify(suggestions)
