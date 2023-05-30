@@ -1,4 +1,4 @@
-ort numpy as np
+import numpy as np
 import requests
 from flask import jsonify
 from flask_restx import Resource, Namespace, fields
