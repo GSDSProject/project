@@ -31,7 +31,7 @@ def get_db():
 def get_collection(user_type):
     if user_type in collections:
         db = get_db()
-        return db[user_type+'_ucb']
+        return db[user_type]
 
 
 def related_word(word, limit=100):
@@ -126,38 +126,26 @@ def process_feedback(recommended_words, user_type, selected_word):
     update_word_params(selected_word, user_type, success)
 
 
-def get_ucb(total, success, num_samples, c):
-    """
-    Calculate the Upper Confidence Bound (UCB)
-    """
-    if success == 0:
-        return float('inf')
-    average = success / total
-    ucb = average + math.sqrt((c * math.log(num_samples)) / success)
-    return ucb
 
-
-def recommend_words_ucb(user_type, num_recommendations=10, c):
+def recommend_words_ucb(user_type, num_recommendations=10):
     """
-    Recommend a list of words using Upper Confidence Bound (UCB)
+    Recommend a list of words using Upper Confidence Bound (UCB).
     """
     collection = get_collection(user_type)
     words = collection.find({})
     word_samples = []
-    total_samples = 0
-    for word_doc in words:
-        word = word_doc["word"]
-        params = word_doc["params"]
-        total_samples += params["successes"] + params["failures"]
+    total_count = sum([doc["params"]["successes"] + doc["params"]["failures"] for doc in words])
 
     for word_doc in words:
         word = word_doc["word"]
         params = word_doc["params"]
-        ucb = get_ucb(params["successes"] + params["failures"], params["successes"], total_samples, c)
-        word_samples.append((word, ucb))
+        average_reward = params["successes"] / (params["successes"] + params["failures"])
+        confidence_bound = math.sqrt((2 * math.log(total_count)) / (params["successes"] + params["failures"]))
+        ucb_score = average_reward + confidence_bound
+        word_samples.append((word, ucb_score))
 
     word_samples.sort(key=lambda x: x[1], reverse=True)
-    recommended_words = [word for word, ucb in word_samples[:num_recommendations]]
+    recommended_words = [word for word, sample in word_samples[:num_recommendations]]
     return recommended_words
 
 
@@ -181,6 +169,6 @@ list_item_model = ns.model('ListItem', {
 class humanFeedback(Resource):
     @ns.expect(list_item_model)
     def post(self, choice_word, c):
-        recommended_words = recommend_words_ucb(ns.payload['user_type'], num_recommendations=10, c)
+        recommended_words = recommend_words_ucb(ns.payload['user_type'], num_recommendations=10, c=c)
         process_feedback(recommended_words, ns.payload['user_type'], choice_word)
         return jsonify(recommended_words)
