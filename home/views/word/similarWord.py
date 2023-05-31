@@ -6,7 +6,7 @@ from pymongo import MongoClient
 from random import sample
 import json
 
-# define namespace
+# define namespace #
 ns = Namespace('word', description='Word operations')
 
 
