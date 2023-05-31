@@ -5,7 +5,7 @@ from flask_cors import CORS
 from flask_restx import Api
 
 from home.views.main import home
-from home.views.word import similarWord
+from home.views.word import similarWord_ts, similarWord_epsilon, similarWord_ucb
 
 api = Api(
     version='1.0',
@@ -23,5 +23,7 @@ def create_app():
     api.init_app(app)
     CORS(app, supports_credentials=True)
     api.add_namespace(ns=home.ns)
-    api.add_namespace(ns=similarWord.ns)
+    api.add_namespace(ns=similarWord_ts.ns)
+    api.add_namespace(ns=similarWord_epsilon.ns)
+    api.add_namespace(ns=similarWord_ucb.ns)
     return app
