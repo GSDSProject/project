@@ -166,5 +166,5 @@ class humanFeedback(Resource):
     @ns.expect(list_item_model)
     def post(self, choice_word):
         recommended_words = recommend_words(ns.payload['user_type'], num_recommendations=10)
-        suggestions = process_feedback(recommended_words, ns.payload['user_type'], choice_word)
-        return jsonify(suggestions)
+        process_feedback(recommended_words, ns.payload['user_type'], choice_word)
+        return jsonify(recommended_words)
