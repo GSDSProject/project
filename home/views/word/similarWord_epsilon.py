@@ -1,13 +1,13 @@
+from random import sample
+
 import numpy as np
 import requests
 from flask import jsonify
 from flask_restx import Resource, Namespace, fields
 from pymongo import MongoClient
-from random import sample
-import json
 
 # define namespace
-ns = Namespace('word', description='Word operations')
+ns = Namespace('epsilon', description='Word operations')
 
 
 # MongoDB 연결 설정
