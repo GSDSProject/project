@@ -170,9 +170,10 @@ def process_feedback(recommended_words, user_type, selected_word):
                         {'name': 'user_type', 'in': 'path', 'type': 'string', 'required': True}]})
 class centerWord(Resource):
     def get(self, word, user_type):
+        user_id = str(uuid.uuid4())
+        response = make_response({'user_id': user_id})
+        response.set_cookie('user_id', user_id)
         suggestions = center_word(word, user_type)
-        resp = make_response(jsonify(suggestions))
-        resp.set_cookie('user_id', str(uuid.uuid4()))
         return jsonify(suggestions)
 
 
