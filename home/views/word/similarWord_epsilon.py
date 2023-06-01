@@ -30,7 +30,7 @@ def get_db():
 def get_collection(user_type):
     if user_type in collections:
         db = get_db()
-        return db[user_type+'_epsilon']
+        return db[user_type]
 
 
 def related_word(word, limit=100):
@@ -84,29 +84,25 @@ def center_word(word, user_type, num_samples=10):
 
 def recommend_words_epsilon_greedy(user_type, num_recommendations=10, epsilon=0.1):
     """
-    Recommend a list of words using epsilon-greedy strategy.
+    Recommend a list of words using Epsilon-Greedy algorithm.
     """
     collection = get_collection(user_type)
     words = collection.find({})
 
-    # Creating a list of words and their successes
-    word_list = []
-    word_successes = []
+    word_samples = []
     for word_doc in words:
         word = word_doc["word"]
         params = word_doc["params"]
-        word_list.append(word)
-        word_successes.append(params["successes"] / (params["successes"] + params["failures"]))
+        sample = params["successes"] / (params["successes"] + params["failures"])
+        word_samples.append((word, sample))
 
-    recommended_words = []
-    for _ in range(num_recommendations):
-        # With probability epsilon, select a random word
-        if np.random.random() < epsilon:
-            recommended_words.append(np.random.choice(word_list))
-        # Otherwise, select the word with the highest success rate
-        else:
-            idx = np.argmax(word_successes)
-            recommended_words.append(word_list[idx])
+    # Exploitation: Choose the word with the highest success rate
+    if np.random.random() > epsilon:
+        word_samples.sort(key=lambda x: x[1], reverse=True)
+        recommended_words = [word for word, sample in word_samples[:num_recommendations]]
+    # Exploration: Choose a random word
+    else:
+        recommended_words = [word for word, sample in np.random.choice(word_samples, size=num_recommendations)]
 
     return recommended_words
 
@@ -176,6 +172,6 @@ list_item_model = ns.model('ListItem', {
 class humanFeedback(Resource):
     @ns.expect(list_item_model)
     def post(self, choice_word, epsilon):
-        recommended_words = recommend_words_epsilon_greedy(ns.payload['user_type'], num_recommendations=10, epsilon)
+        recommended_words = recommend_words_epsilon_greedy(ns.payload['user_type'], num_recommendations=10, epsilon=epsilon)
         process_feedback(recommended_words, ns.payload['user_type'], choice_word)
         return jsonify(recommended_words)
