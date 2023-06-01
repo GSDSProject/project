@@ -191,4 +191,6 @@ class humanFeedback(Resource):
         store_word_and_related_words(choice_word, user_type)
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
         process_feedback(recommended_words, user_type, choice_word)
+        resp = make_response(jsonify(recommended_words))
+        resp.set_cookie('user_id', str(uuid.uuid4()))
         return jsonify(recommended_words)
