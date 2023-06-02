@@ -221,3 +221,4 @@ class humanFeedback(Resource):
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
         process_feedback(recommended_words, user_type, choice_word)
         return jsonify(recommended_words)
+
