@@ -163,8 +163,6 @@ def process_feedback(recommended_words, user_type, selected_word):
     update_word_params(selected_word, user_type, success)
 
 
-
-
 @ns.route('/center/<user_type>/<word>')
 @ns.doc({'parameters': [{'name': 'word', 'in': 'path', 'type': 'string', 'required': True},
                         {'name': 'user_type', 'in': 'path', 'type': 'string', 'required': True}]})
@@ -185,7 +183,7 @@ list_item_model = ns.model('ListItem', {
 
 
 @ns.route('/human/<choice_word>')
-@ns.doc({'parameters': [{'name': 'choice_word', 'in': 'path', 'type': 'string', 'required': True})
+@ns.doc({'parameters': [{'name': 'choice_word', 'in': 'path', 'type': 'string', 'required': True}]})
 class humanFeedback(Resource):
     @ns.expect(list_item_model)
     def post(self, choice_word):
