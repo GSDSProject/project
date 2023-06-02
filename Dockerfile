@@ -17,4 +17,4 @@ ENV FLASK_APP=app
 EXPOSE 8000
 
 # Start the Gunicorn server with 4 worker processes
-CMD ["gunicorn", "--workers=1", "--bind=0.0.0.0:8000", "run:app"]
+CMD ["gunicorn", "--workers=1", "--bind=0.0.0.0:8000","--timeout=120", "run:app"]
