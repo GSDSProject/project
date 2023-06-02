@@ -5,7 +5,6 @@ from flask_restx import Resource, Api, Namespace, fields
 from pymongo import MongoClient
 from random import sample
 from pymongo.errors import PyMongoError
-import json
 import uuid
 
 
