@@ -17,9 +17,9 @@ mongodb_uri = "mongodb+srv://p4dsteam6:team6@cluster0.yvkcbg6.mongodb.net/"
 client = MongoClient(mongodb_uri)
 db = client['mindmapDB']
 collections = {
-    'marketer': db['marketer'],
-    'developer': db['developer'],
-    'designer': db['designer'],
+    'Marketer': db['marketer'],
+    'Developer': db['developer'],
+    'Designer': db['designer'],
     'recommended': db['recommended'],
 }
 
