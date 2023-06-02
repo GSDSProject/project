@@ -9,7 +9,7 @@ import json
 import uuid
 
 
-# define namespace
+# define namespace #
 ns = Namespace('word', description='Word operations')
 
 
