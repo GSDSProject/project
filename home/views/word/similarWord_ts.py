@@ -7,10 +7,8 @@ from random import sample
 from pymongo.errors import PyMongoError
 import uuid
 
-
 # define namespace
 ns = Namespace('word', description='Word operations')
-
 
 # MongoDB 연결 설정
 mongodb_uri = "mongodb+srv://p4dsteam6:team6@cluster0.yvkcbg6.mongodb.net/"
@@ -26,22 +24,21 @@ collections = {
 
 def get_db():
     try:
-        client = MongoClient(mongodb_uri)
-        db = client['mindmapDB']
+        client_ = MongoClient(mongodb_uri)
+        db_ = client_['mindmapDB']
     except PyMongoError as e:
         print(f"An error occurred while connecting to MongoDB: {e}")
         return None
-    return db
-
+    return db_
 
 
 def get_collection(user_type):
     try:
         if user_type in collections:
-            db = get_db()
-            if db is None:
+            db_ = get_db()
+            if db_ is None:
                 raise PyMongoError("Database not found")
-            return db[user_type]
+            return db_[user_type]
     except PyMongoError as e:
         print(f"An error occurred while accessing collection: {e}")
         return None
@@ -61,7 +58,8 @@ def related_word(word, limit=100):
         related_words = []
         for item in data['edges']:
             if item['rel']['label'] == 'RelatedTo':
-                related = item['start']['label'].lower() if item['start']['label'].lower() != word else item['end']['label'].lower()
+                related = item['start']['label'].lower() if item['start']['label'].lower() != word else item['end'][
+                    'label'].lower()
                 if related not in related_words:
                     related_words.append(related)
         return related_words
@@ -123,11 +121,11 @@ def recommend_words(user_id, user_type, num_recommendations=10):
             word = word_doc["word"]
             if word not in previously_recommended:
                 params = word_doc["params"]
-                sample = np.random.beta(params["successes"], params["failures"])
-                word_samples.append((word, sample))
+                samples = np.random.beta(params["successes"], params["failures"])
+                word_samples.append((word, samples))
 
         word_samples.sort(key=lambda x: x[1], reverse=True)
-        recommended_words = [word for word, sample in word_samples[:num_recommendations]]
+        recommended_words = [word for word, sample_ in word_samples[:num_recommendations]]
 
         # Update the list of recommended words for the user
         if doc:
@@ -206,7 +204,6 @@ list_item_model = ns.model('ListItem', {
     'center_word': fields.String(required=True, description='Center word'),
     'user_type': fields.String(required=True, description='User type'),
 })
-
 
 
 @ns.route('/human/<choice_word>')
