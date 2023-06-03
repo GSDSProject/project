@@ -162,6 +162,7 @@ class centerWord(Resource):
         response.set_cookie('user_id', user_id)
         store_word(word, user_type)
         store_related_words(word, user_type)
+        user_id = request.cookies.get('user_id')
         add_user(word, user_id)
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
         store_recommend_words(user_id, recommended_words)
@@ -187,5 +188,3 @@ class humanFeedback(Resource):
         store_recommend_words(user_id, recommended_words)
         process_feedback(recommended_words, user_type, choice_word)
         return jsonify(recommended_words)
-
-
