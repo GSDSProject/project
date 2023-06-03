@@ -55,7 +55,7 @@ def related_word(word, limit=100):
             related_word_ = edge['end']['@id'].split('/')[-1]
             related_words.append(related_word_)
 
-    return related_words
+    return list(set(related_words))
 
 
 def store_word(word, user_type):
