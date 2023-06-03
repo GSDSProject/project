@@ -53,7 +53,8 @@ def related_word(word, limit=100):
     for edge in data['edges']:
         if edge['end']['@id'] != f"/c/en/{word}":
             related_word_ = edge['end']['@id'].split('/')[-1]
-            related_words.append(related_word_)
+            if related_word.isalpha():
+                related_words.append(related_word_)
 
     return list(set(related_words))
 
@@ -62,7 +63,7 @@ def store_word(word, user_type):
     collection = get_collection(user_type)
     doc = collection.find_one({"word": word})
     if doc is None:
-        params = {"successes": 1, "failures": 1}
+        params = {"successes": 3, "failures": 1}
         doc = {
             "word": word,
             "params": params
@@ -143,9 +144,9 @@ def update_word_params(word, user_type, success):
     collection = get_collection(user_type)
     params = get_word_params(word, user_type)
     if success:
-        params["successes"] += 1
+        params["successes"] += 3
     else:
-        params["failures"] += 1
+        params["failures"] += 0
     collection.update_one({"word": word}, {"$set": {"params": params}})
 
 
