@@ -53,8 +53,7 @@ def related_word(word, limit=100):
     for edge in data['edges']:
         if edge['end']['@id'] != f"/c/en/{word}":
             related_word_ = edge['end']['@id'].split('/')[-1]
-            if related_word.isalpha():
-                related_words.append(related_word_)
+            related_words.append(related_word_)
 
     return list(set(related_words))
 
@@ -153,6 +152,7 @@ def update_word_params(word, user_type, success):
 def process_feedback(recommended_words, user_type, selected_word):
     success = (selected_word in recommended_words)
     update_word_params(selected_word, user_type, success)
+
 
 
 @ns.route('/center/<user_type>/<word>')
