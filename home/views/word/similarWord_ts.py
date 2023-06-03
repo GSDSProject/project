@@ -11,6 +11,7 @@ ns = Namespace('word', description='Word operations')
 
 # MongoDB 연결 설정
 mongodb_uri = "mongodb+srv://p4dsteam6:team6@cluster0.yvkcbg6.mongodb.net/"
+# mongodb_uri = "mongodb://localhost:27017"
 client = MongoClient(mongodb_uri)
 db = client['mindmapDB']
 collections = {
@@ -53,7 +54,8 @@ def related_word(word, limit=100):
     for edge in data['edges']:
         if edge['end']['@id'] != f"/c/en/{word}":
             related_word_ = edge['end']['@id'].split('/')[-1]
-            related_words.append(related_word_)
+            if related_word_.isalpha():
+                related_words.append(related_word_)
 
     return list(set(related_words))
 
@@ -143,7 +145,7 @@ def update_word_params(word, user_type, success):
     collection = get_collection(user_type)
     params = get_word_params(word, user_type)
     if success:
-        params["successes"] += 3
+        params["successes"] += 2
     else:
         params["failures"] += 0
     collection.update_one({"word": word}, {"$set": {"params": params}})
@@ -152,7 +154,6 @@ def update_word_params(word, user_type, success):
 def process_feedback(recommended_words, user_type, selected_word):
     success = (selected_word in recommended_words)
     update_word_params(selected_word, user_type, success)
-
 
 
 @ns.route('/center/<user_type>/<word>')
