@@ -193,3 +193,4 @@ class humanFeedback(Resource):
         store_recommend_words(user_id, recommended_words)
         process_feedback(recommended_words, user_type, choice_word)
         return jsonify(recommended_words)
+
