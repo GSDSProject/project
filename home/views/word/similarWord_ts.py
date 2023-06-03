@@ -6,6 +6,7 @@ from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 import uuid
 
+
 # define namespace #
 ns = Namespace('word', description='Word operations')
 
