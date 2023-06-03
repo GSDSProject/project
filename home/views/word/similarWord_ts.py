@@ -106,7 +106,9 @@ def recommend_words(user_id, user_type, num_recommendations=10):
             word_samples.append((word, samples))
 
     word_samples.sort(key=lambda x: x[1], reverse=True)
-    recommended_words = [word for word, sample_ in word_samples[:num_recommendations]]
+
+    num_to_recommend = min(len(word_samples), num_recommendations)
+    recommended_words = [word for word, sample_ in word_samples[:num_to_recommend]]
     return recommended_words
 
 
