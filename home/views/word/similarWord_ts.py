@@ -3,7 +3,6 @@ import requests
 from flask import Flask, request, make_response, jsonify
 from flask_restx import Resource, Api, Namespace, fields
 from pymongo import MongoClient
-from random import sample
 from pymongo.errors import PyMongoError
 import uuid
 
@@ -45,99 +44,81 @@ def get_collection(user_type):
 
 
 def related_word(word, limit=100):
-    try:
-        word = word.lower()
-        url = f'http://api.conceptnet.io/c/en/{word}?rel=/r/RelatedTo&limit={limit}'
-        response = requests.get(url)
-        response.raise_for_status()  # Raises stored HTTPError, if one occurred.
-        data = response.json()
-    except (requests.HTTPError, ValueError) as err:
-        print(f'An error occurred: {err}')
-        return []
-    else:
-        related_words = []
-        for item in data['edges']:
-            if item['rel']['label'] == 'RelatedTo':
-                related = item['start']['label'].lower() if item['start']['label'].lower() != word else item['end'][
-                    'label'].lower()
-                if related not in related_words:
-                    related_words.append(related)
-        return related_words
+    word = word.lower()
+    url = f"http://api.conceptnet.io/query?node=/c/en/{word}&rel=/r/RelatedTo&limit={limit}"
+    response = requests.get(url)
+    data = response.json()
+
+    related_words = []
+    for edge in data['edges']:
+        if edge['end']['@id'] != f"/c/en/{word}":
+            related_word_ = edge['end']['@id'].split('/')[-1]
+            related_words.append(related_word_)
+
+    return related_words
 
 
-def store_word_and_related_words(word, user_type, limit=100):
-    try:
-        collection = get_collection(user_type)
-        if collection is None:
-            raise PyMongoError("Collection not found")
-        doc = collection.find_one({"word": word})
+def store_word(word, user_type):
+    collection = get_collection(user_type)
+    doc = collection.find_one({"word": word})
+    if doc is None:
+        params = {"successes": 1, "failures": 1}
+        doc = {
+            "word": word,
+            "params": params
+        }
+        collection.insert_one(doc)
+
+
+def store_related_words(word, user_type, limit=100):
+    related_words = related_word(word, limit)
+    collection = get_collection(user_type)
+    for a_word in related_words:
+        doc = collection.find_one({"word": a_word})
         if doc is None:
             params = {"successes": 1, "failures": 1}
             doc = {
-                "word": word,
+                "word": a_word,
                 "params": params
             }
             collection.insert_one(doc)
 
-        related_words = related_word(word, limit)
-        for a_word in related_words:
-            doc = collection.find_one({"word": a_word})
-            if doc is None:
-                params = {"successes": 1, "failures": 1}
-                doc = {
-                    "word": word,
-                    "params": params
-                }
-                collection.insert_one(doc)
-    except PyMongoError as e:
-        print(f"An error occurred while storing word and related words in MongoDB: {e}")
 
-
-def center_word(word, user_type, num_samples=10):
-    store_word_and_related_words(word, user_type, limit=100)
-    words = related_word(word, limit=100)
-    return sample(words, num_samples)
+def add_user(word, user_id):
+    collection = get_collection('recommended')
+    collection.insert_one({"user_id": user_id, "words": [word]})
 
 
 def recommend_words(user_id, user_type, num_recommendations=10):
-    """
-    Recommend a list of words using Thompson Sampling.
-    Exclude words that have already been recommended.
-    """
-    try:
-        collection = get_collection(user_type)
-        recommended_collection = get_collection('recommended')
-        if collection is None or recommended_collection is None:
-            raise PyMongoError("Collection not found")
+    collection = get_collection(user_type)
+    recommended_collection = get_collection('recommended')
+    doc = recommended_collection.find_one({"user_id": user_id})
+    previously_recommended = doc['words'] if doc else []
 
-        # Fetch previously recommended words for the user
-        doc = recommended_collection.find_one({"user_id": user_id})
-        previously_recommended = doc['words'] if doc else []
+    words = collection.find({})
+    word_samples = []
 
-        words = collection.find({})
-        word_samples = []
+    for word_doc in words:
+        word = word_doc["word"]
+        if word not in previously_recommended:
+            params = word_doc["params"]
+            samples = np.random.beta(params["successes"], params["failures"])
+            word_samples.append((word, samples))
 
-        for word_doc in words:
-            word = word_doc["word"]
-            if word not in previously_recommended:
-                params = word_doc["params"]
-                samples = np.random.beta(params["successes"], params["failures"])
-                word_samples.append((word, samples))
+    word_samples.sort(key=lambda x: x[1], reverse=True)
+    recommended_words = [word for word, sample_ in word_samples[:num_recommendations]]
+    return recommended_words
 
-        word_samples.sort(key=lambda x: x[1], reverse=True)
-        recommended_words = [word for word, sample_ in word_samples[:num_recommendations]]
 
-        # Update the list of recommended words for the user
-        if doc:
-            recommended_collection.update_one({"user_id": user_id},
-                                              {"$set": {"words": previously_recommended + recommended_words}})
-        else:
-            recommended_collection.insert_one({"user_id": user_id, "words": recommended_words})
-
-        return recommended_words
-    except PyMongoError as e:
-        print(f"An error occurred while recommending words: {e}")
-        return []
+def store_recommend_words(user_id, recommended_words):
+    recommended_collection = get_collection('recommended')
+    doc = recommended_collection.find_one({"user_id": user_id})
+    if doc:
+        previously_recommended = doc['words']
+        updated_words = previously_recommended + recommended_words
+        recommended_collection.update_one({"user_id": user_id}, {"$set": {"words": updated_words}})
+    else:
+        recommended_collection.insert_one({"user_id": user_id, "words": recommended_words})
 
 
 def get_word_params(word, user_type):
@@ -147,15 +128,7 @@ def get_word_params(word, user_type):
     """
     collection = get_collection(user_type)
     doc = collection.find_one({"word": word})
-    if doc is None:
-        params = {"successes": 2, "failures": 0}
-        doc = {
-            "word": word,
-            "params": params
-        }
-        collection.insert_one(doc)
-    else:
-        params = doc["params"]
+    params = doc["params"]
     return params
 
 
@@ -165,25 +138,16 @@ def update_word_params(word, user_type, success):
     If success is True, increment the successes of the word.
     If success is False, increment the failures of the word.
     """
-    try:
-        collection = get_collection(user_type)
-        if collection is None:
-            raise PyMongoError("Collection not found")
-        params = get_word_params(word, user_type)
-        if success:
-            params["successes"] += 1
-        else:
-            params["failures"] += 1
-        collection.update_one({"word": word}, {"$set": {"params": params}})
-    except PyMongoError as e:
-        print(f"An error occurred while updating word parameters in MongoDB: {e}")
+    collection = get_collection(user_type)
+    params = get_word_params(word, user_type)
+    if success:
+        params["successes"] += 1
+    else:
+        params["failures"] += 1
+    collection.update_one({"word": word}, {"$set": {"params": params}})
 
 
 def process_feedback(recommended_words, user_type, selected_word):
-    """
-    Process the feedback of a user.
-    If the selected word is in the recommended words, consider it a success for that word.
-    """
     success = (selected_word in recommended_words)
     update_word_params(selected_word, user_type, success)
 
@@ -196,8 +160,12 @@ class centerWord(Resource):
         user_id = str(uuid.uuid4())
         response = make_response({'user_id': user_id})
         response.set_cookie('user_id', user_id)
-        suggestions = center_word(word, user_type)
-        return jsonify(suggestions)
+        store_word(word, user_type)
+        store_related_words(word, user_type)
+        add_user(word, user_id)
+        recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
+        store_recommend_words(user_id, recommended_words)
+        return jsonify(recommended_words)
 
 
 list_item_model = ns.model('ListItem', {
@@ -213,7 +181,11 @@ class humanFeedback(Resource):
     def post(self, choice_word):
         user_id = request.cookies.get('user_id')
         user_type = ns.payload['user_type']
-        store_word_and_related_words(choice_word, user_type)
+        store_word(choice_word, user_type)
+        store_related_words(choice_word, user_type)
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
+        store_recommend_words(user_id, recommended_words)
         process_feedback(recommended_words, user_type, choice_word)
         return jsonify(recommended_words)
+
+
