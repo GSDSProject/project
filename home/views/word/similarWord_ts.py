@@ -57,7 +57,6 @@ def related_word(word, limit=100):
             related_word_ = edge['end']['@id'].split('/')[-1]
             if related_word_.isalpha():
                 related_words.append(related_word_)
-
     return list(set(related_words))
 
 
@@ -65,7 +64,7 @@ def store_word(word, user_type):
     collection = get_collection(user_type)
     doc = collection.find_one({"word": word})
     if doc is None:
-        params = {"successes": 3, "failures": 1}
+        params = {"successes": 3, "failures": 1, "reward": 0}
         doc = {
             "word": word,
             "params": params
@@ -79,7 +78,7 @@ def store_related_words(word, user_type, limit=100):
     for a_word in related_words:
         doc = collection.find_one({"word": a_word})
         if doc is None:
-            params = {"successes": 1, "failures": 1}
+            params = {"successes": 1, "failures": 1, "reward": 0}
             doc = {
                 "word": a_word,
                 "params": params
@@ -147,6 +146,7 @@ def update_word_params(word, user_type, success):
     params = get_word_params(word, user_type)
     if success:
         params["successes"] += 2
+        params["reward"] += 1  # Increment the reward when the word is selected
     else:
         params["failures"] += 0
     collection.update_one({"word": word}, {"$set": {"params": params}})
@@ -155,6 +155,19 @@ def update_word_params(word, user_type, success):
 def process_feedback(recommended_words, user_type, selected_word):
     success = (selected_word in recommended_words)
     update_word_params(selected_word, user_type, success)
+
+
+def calculate_cumulative_reward(user_type):
+    """
+    Calculate the cumulative reward by summing up the rewards of all words.
+    """
+    collection = get_collection(user_type)
+    words = collection.find({})
+    total_reward = 0
+    for word_doc in words:
+        params = word_doc["params"]
+        total_reward += params["reward"]
+    return total_reward
 
 
 @ns.route('/center/<user_type>/<word>')
@@ -203,3 +216,15 @@ class humanFeedback(Resource):
         response = make_response(jsonify(response_dict))
         response.set_cookie('user_id', user_id)
         return response
+
+
+@ns.route('/performance/<user_type>')
+@ns.doc({'parameters': [{'name': 'user_type', 'in': 'path', 'type': 'string', 'required': True}]})
+class performanceMeasure(Resource):
+    @ns.expect(list_item_model)
+    def post(self, user_type):
+        measure = calculate_cumulative_reward(user_type)
+        response_data = {'user_type': user_type, 'performance_measure': measure}
+        response = make_response(jsonify(response_data))
+        return response
+
