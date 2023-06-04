@@ -6,6 +6,7 @@ from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 import uuid
 
+
 # define namespace #
 ns = Namespace('word', description='Word operations')
 
@@ -162,15 +163,19 @@ def process_feedback(recommended_words, user_type, selected_word):
 class centerWord(Resource):
     def get(self, word, user_type):
         user_id = str(uuid.uuid4())
-        response = make_response({'user_id': user_id})
-        response.set_cookie('user_id', user_id)
         store_word(word, user_type)
         store_related_words(word, user_type)
-        user_id = request.cookies.get('user_id')
         add_user(word, user_id)
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
         store_recommend_words(user_id, recommended_words)
-        return jsonify(recommended_words)
+        response_dict = {
+            "user_id": user_id,
+            "recommended_words": recommended_words
+        }
+        response = make_response(jsonify(response_dict))
+        response.set_cookie('user_id', user_id)
+
+        return response
 
 
 list_item_model = ns.model('ListItem', {
@@ -191,4 +196,10 @@ class humanFeedback(Resource):
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
         store_recommend_words(user_id, recommended_words)
         process_feedback(recommended_words, user_type, choice_word)
-        return jsonify(recommended_words)
+        response_dict = {
+            "user_id": user_id,
+            "recommended_words": recommended_words
+        }
+        response = make_response(jsonify(response_dict))
+        response.set_cookie('user_id', user_id)
+        return response
