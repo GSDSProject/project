@@ -1,10 +1,11 @@
+import uuid
+
 import numpy as np
 import requests
-from flask import Flask, request, make_response, jsonify
-from flask_restx import Resource, Api, Namespace, fields
+from flask import request, make_response, jsonify
+from flask_restx import Resource, Namespace, fields
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
-import uuid
 
 # conflict
 # define namespace #
@@ -181,11 +182,7 @@ class centerWord(Resource):
         add_user(word, user_id)
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
         store_recommend_words(user_id, recommended_words)
-        response_dict = {
-            "user_id": user_id,
-            "recommended_words": recommended_words
-        }
-        response = make_response(jsonify(response_dict))
+        response = make_response(jsonify(recommended_words))
         response.set_cookie('user_id', user_id)
 
         return response
@@ -209,11 +206,7 @@ class humanFeedback(Resource):
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
         store_recommend_words(user_id, recommended_words)
         process_feedback(recommended_words, user_type, choice_word)
-        response_dict = {
-            "user_id": user_id,
-            "recommended_words": recommended_words
-        }
-        response = make_response(jsonify(response_dict))
+        response = make_response(jsonify(recommended_words))
         response.set_cookie('user_id', user_id)
         return response
 
