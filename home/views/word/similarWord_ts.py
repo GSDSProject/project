@@ -1,8 +1,8 @@
 import uuid
-from flask import Flask, request, make_response, jsonify
-from flask_restx import Api, Resource, Namespace, fields
 import numpy as np
 import requests
+from flask import request, make_response, jsonify
+from flask_restx import Resource, Namespace
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
