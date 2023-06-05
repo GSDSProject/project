@@ -6,7 +6,6 @@ from flask_restx import Resource, Namespace
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
-# conflict
 # define namespace #
 ns = Namespace('word', description='Word operations')
 
