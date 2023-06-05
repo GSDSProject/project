@@ -21,7 +21,7 @@ def create_app():
     app.config['MONGO_URI'] = os.environ.get('MONGO_HOST')
     app.secret_key = os.environ.get('SECRET_KEY')
     api.init_app(app)
-    CORS(app, supports_credentials=True)
+    CORS(app, resources={r'/*': {'origins': '*'}}, supports_credentials=True)
     api.add_namespace(ns=home.ns)
     api.add_namespace(ns=similarWord_ts.ns)
     return app
