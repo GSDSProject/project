@@ -64,7 +64,7 @@ def store_word(word, user_type):
     collection = get_collection(user_type)
     doc = collection.find_one({"word": word})
     if doc is None:
-        params = {"successes": 3, "failures": 1, "reward": 0}
+        params = {"successes": 2, "failures": 1, "reward": 0}
         doc = {
             "word": word,
             "params": params
@@ -145,16 +145,21 @@ def update_word_params(word, user_type, success):
     collection = get_collection(user_type)
     params = get_word_params(word, user_type)
     if success:
-        params["successes"] += 2
-        params["reward"] += 1  # Increment the reward when the word is selected
+        params["successes"] += 3
     else:
-        params["failures"] += 0
+        params["failures"] += 1
     collection.update_one({"word": word}, {"$set": {"params": params}})
 
 
 def process_feedback(recommended_words, user_type, selected_word):
-    success = (selected_word in recommended_words)
-    update_word_params(selected_word, user_type, success)
+    if selected_word not in recommended_words:
+        update_word_params(selected_word, user_type, True)
+    for i in range(len(recommended_words)):
+        if recommended_words[i] == selected_word:
+            params = get_word_params(selected_word, user_type)
+            params["reward"] += 1
+        else:
+            update_word_params(selected_word, user_type, False)
 
 
 def calculate_cumulative_reward(user_type):
@@ -231,4 +236,3 @@ class performanceMeasure(Resource):
         response_data = {'user_type': user_type, 'performance_measure': measure}
         response = make_response(jsonify(response_data))
         return response
-
