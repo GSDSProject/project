@@ -1,19 +1,18 @@
 import uuid
-
 import numpy as np
 import requests
 from flask import request, make_response, jsonify
-from flask_restx import Resource, Namespace, fields
+from flask_restx import Resource, Namespace
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
-# conflict
-# define namespace #
+# define namespace
 ns = Namespace('word', description='Word operations')
 
 # MongoDB 연결 설정
 mongodb_uri = "mongodb+srv://p4dsteam6:team6@cluster0.yvkcbg6.mongodb.net/"
 # mongodb_uri = "mongodb://localhost:27017"
+# client = MongoClient(mongodb_uri, ssl_cert_reqs=ssl.CERT_NONE)
 client = MongoClient(mongodb_uri)
 db = client['mindmapDB']
 collections = {
@@ -184,23 +183,23 @@ class centerWord(Resource):
         store_recommend_words(user_id, recommended_words)
         response = make_response(jsonify(recommended_words))
         response.set_cookie('user_id', user_id)
-
+        response.set_cookie('user_type', user_type)
         return response
 
 
-list_item_model = ns.model('ListItem', {
-    'center_word': fields.String(required=True, description='Center word'),
-    'user_type': fields.String(required=True, description='User type'),
-})
+# list_item_model = ns.model('ListItem', {
+#    'center_word': fields.String(required=True, description='Center word'),
+#    'user_type': fields.String(required=True, description='User type'),
+# })
 
 
 @ns.route('/human/<choice_word>')
 @ns.doc({'parameters': [{'name': 'choice_word', 'in': 'path', 'type': 'string', 'required': True}]})
 class humanFeedback(Resource):
-    @ns.expect(list_item_model)
+    # @ns.expect(list_item_model)
     def post(self, choice_word):
         user_id = request.cookies.get('user_id')
-        user_type = ns.payload['user_type']
+        user_type = request.cookies.get('user_type')
         store_word(choice_word, user_type)
         store_related_words(choice_word, user_type)
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
@@ -208,13 +207,25 @@ class humanFeedback(Resource):
         process_feedback(recommended_words, user_type, choice_word)
         response = make_response(jsonify(recommended_words))
         response.set_cookie('user_id', user_id)
+        response.set_cookie('user_type', user_type)
         return response
 
 
 @ns.route('/performance/<user_type>')
 @ns.doc({'parameters': [{'name': 'user_type', 'in': 'path', 'type': 'string', 'required': True}]})
 class performanceMeasure(Resource):
-    @ns.expect(list_item_model)
+    # @ns.expect(list_item_model)
+    def post(self, user_type):
+        measure = calculate_cumulative_reward(user_type)
+        response_data = {'user_type': user_type, 'performance_measure': measure}
+        response = make_response(jsonify(response_data))
+        return response
+
+
+@ns.route('/performance/<user_type>')
+@ns.doc({'parameters': [{'name': 'user_type', 'in': 'path', 'type': 'string', 'required': True}]})
+class performanceMeasure(Resource):
+    # @ns.expect(list_item_model)
     def post(self, user_type):
         measure = calculate_cumulative_reward(user_type)
         response_data = {'user_type': user_type, 'performance_measure': measure}
