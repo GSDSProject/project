@@ -5,7 +5,6 @@ import numpy as np
 import requests
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
-# import ssl
 
 # conflict
 # define namespace #
