@@ -85,9 +85,9 @@ def store_related_words(word, user_type, limit=100):
             collection.insert_one(doc)
 
 
-def add_user(word, user_id):
+def add_user(word, user_id, user_type):
     collection = get_collection('recommended')
-    collection.insert_one({"user_id": user_id, "words": [[word]], "choice": [word]})
+    collection.insert_one({"user_id": user_id, "user_type": user_type, "words": [[word]], "choice": [word]})
 
 
 def get_users_recommended(user_id):
@@ -188,6 +188,16 @@ def calculate_cumulative_reward(user_type):
     return total_reward
 
 
+def calculate_choice_num(user_type):
+    collection_user = get_collection('recommended')
+    doc = collection_user.find({"user_type": user_type})
+    total_choice = 0
+    for user_doc in doc:
+        choice_list = user_doc["choice"]
+        total_choice = len(choice_list)-1
+    return total_choice
+
+
 @ns.route('/center/<user_type>/<word>')
 @ns.doc({'parameters': [{'name': 'word', 'in': 'path', 'type': 'string', 'required': True},
                         {'name': 'user_type', 'in': 'path', 'type': 'string', 'required': True}]})
@@ -196,7 +206,7 @@ class centerWord(Resource):
         user_id = str(uuid.uuid4())
         store_word(word, user_type)
         store_related_words(word, user_type)
-        add_user(word, user_id)
+        add_user(word, user_id, user_type)
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
         store_recommend_words(user_id, recommended_words)
         response = make_response(jsonify(recommended_words))
@@ -226,8 +236,11 @@ class humanFeedback(Resource):
         store_word(choice_word, user_type)
         store_related_words(choice_word, user_type)
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
+        try:
+            recommended_words.remove(choice_word)
+        except ValueError:
+            pass
         store_recommend_words(user_id, recommended_words)
-
         response = make_response(jsonify(recommended_words))
         response.set_cookie('user_id', user_id)
         return response
@@ -239,6 +252,8 @@ class performanceMeasure(Resource):
     @ns.expect(list_item_model)
     def post(self, user_type):
         measure = calculate_cumulative_reward(user_type)
-        response_data = {'user_type': user_type, 'performance_measure': measure}
+        total_choice = calculate_choice_num(user_type)
+        accuracy = measure / total_choice
+        response_data = {'user_type': user_type, 'performance_measure': accuracy}
         response = make_response(jsonify(response_data))
         return response
