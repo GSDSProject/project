@@ -175,27 +175,45 @@ def process_feedback(recommended, user_type, choice_word):
             update_word_params(recommended[i], user_type, False)
 
 
-def calculate_cumulative_reward(user_type):
+def word_exposure(word, user_type):
     """
     Calculate the cumulative reward by summing up the rewards of all words.
     """
-    collection = get_collection(user_type)
-    words = collection.find({})
-    total_reward = 0
-    for word_doc in words:
-        params = word_doc["params"]
-        total_reward += params["reward"]
-    return total_reward
-
-
-def calculate_choice_num(user_type):
     collection_user = get_collection('recommended')
     doc = collection_user.find({"user_type": user_type})
-    total_choice = 0
+    num_exposure = 0
     for user_doc in doc:
-        choice_list = user_doc["choice"]
-        total_choice += len(choice_list)-1
-    return total_choice
+        for i in range(len(user_doc["words"])):
+            for a_word in user_doc["words"][i]:
+                if a_word == word:
+                    num_exposure += 1
+    return num_exposure
+
+
+def accumulate_word_reward(word, user_type):
+    params = get_word_params(word, user_type)
+    reward = params['reward']
+    return reward
+
+
+def word_ctr(word, user_type):
+    ctr = accumulate_word_reward(word, user_type) / word_exposure(word, user_type)
+    return ctr
+
+
+def expected_ctr(user_type):
+    collection = get_collection(user_type)
+    words = collection.find({})
+    ctr_list = []
+    for word_doc in words:
+        word = word_doc["word"]
+        ctr = word_ctr(word, user_type)
+        ctr_list.append(ctr)
+    average = sum(ctr_list) / len(ctr_list)
+    return average
+
+
+
 
 
 @ns.route('/center/<user_type>/<word>')
@@ -250,9 +268,7 @@ class humanFeedback(Resource):
 class performanceMeasure(Resource):
     @ns.expect(list_item_model)
     def post(self, user_type):
-        measure = calculate_cumulative_reward(user_type)
-        total_choice = calculate_choice_num(user_type)
-        accuracy = measure / total_choice
-        response_data = {'user_type': user_type, 'performance_measure': accuracy}
+        ctr = expected_ctr(user_type)
+        response_data = {'user_type': user_type, 'performance_measure': ctr}
         response = make_response(jsonify(response_data))
         return response
