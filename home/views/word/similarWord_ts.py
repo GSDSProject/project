@@ -2,8 +2,8 @@ import uuid
 
 import numpy as np
 import requests
-from flask import make_response, jsonify
-from flask_restx import Resource, Namespace, fields
+from flask import make_response, jsonify, Flask
+from flask_restx import Resource, Namespace, fields, Api
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
@@ -11,8 +11,8 @@ from pymongo.errors import PyMongoError
 ns = Namespace('word', description='Word operations')
 
 # MongoDB 연결 설정
-mongodb_uri = "mongodb+srv://p4dsteam6:team6@cluster0.yvkcbg6.mongodb.net/"
-# mongodb_uri = "mongodb://localhost:27017"
+# mongodb_uri = "mongodb+srv://p4dsteam6:team6@cluster0.yvkcbg6.mongodb.net/"
+mongodb_uri = "mongodb://localhost:27017"
 client = MongoClient(mongodb_uri)
 db = client['mindmapDB']
 collections = {
@@ -280,4 +280,3 @@ class performanceMeasure(Resource):
                          'center_word': center_word, 'performance_measure': ctr}
         response = make_response(jsonify(response_data))
         return response
-
