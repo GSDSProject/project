@@ -267,8 +267,8 @@ class humanFeedback(Resource):
         return response
 
 
-@ns.route('/performance/<user_type>')
-@ns.doc({'parameters': [{'name': 'user_type', 'in': 'path', 'type': 'string', 'required': True}]})
+@ns.route('/performance')
+@ns.doc({'parameters': [{}]})
 class performanceMeasure(Resource):
     @ns.expect(list_item_model)
     def post(self):
