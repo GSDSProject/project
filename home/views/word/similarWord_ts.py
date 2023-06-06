@@ -1,7 +1,8 @@
 import uuid
+
 import numpy as np
 import requests
-from flask import request, make_response, jsonify
+from flask import make_response, jsonify
 from flask_restx import Resource, Namespace, fields
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
@@ -194,7 +195,7 @@ def calculate_choice_num(user_type):
     total_choice = 0
     for user_doc in doc:
         choice_list = user_doc["choice"]
-        total_choice = len(choice_list)-1
+        total_choice = len(choice_list) - 1
     return total_choice
 
 
@@ -209,15 +210,18 @@ class centerWord(Resource):
         add_user(word, user_id, user_type)
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
         store_recommend_words(user_id, recommended_words)
-        response = make_response(jsonify(recommended_words))
-        response.set_cookie('user_id', user_id)
-
+        resp = {
+            'recommended_words': recommended_words,
+            'user_id': user_id
+        }
+        response = make_response(jsonify(resp))
         return response
 
 
 list_item_model = ns.model('ListItem', {
     'center_word': fields.String(required=True, description='Center word'),
     'user_type': fields.String(required=True, description='User type'),
+    'user_id': fields.String(required=True, description='User id')
 })
 
 
@@ -226,7 +230,7 @@ list_item_model = ns.model('ListItem', {
 class humanFeedback(Resource):
     @ns.expect(list_item_model)
     def post(self, choice_word):
-        user_id = request.cookies.get('user_id')
+        user_id = ns.payload['user_id']
         user_type = ns.payload['user_type']
         add_user_chosen(choice_word, user_id)
 
@@ -240,8 +244,12 @@ class humanFeedback(Resource):
         recommended_set.discard(choice_word)
         recommended_word = list(recommended_set)
         store_recommend_words(user_id, recommended_word)
-        response = make_response(jsonify(recommended_word))
-        response.set_cookie('user_id', user_id)
+        resp = {
+            'recommended_words': recommended_word,
+            'user_id': user_id
+        }
+        response = make_response(jsonify(resp))
+
         return response
 
 
