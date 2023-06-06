@@ -11,8 +11,8 @@ from pymongo.errors import PyMongoError
 ns = Namespace('word', description='Word operations')
 
 # MongoDB 연결 설정
-# mongodb_uri = "mongodb+srv://p4dsteam6:team6@cluster0.yvkcbg6.mongodb.net/"
-mongodb_uri = "mongodb://localhost:27017"
+mongodb_uri = "mongodb+srv://p4dsteam6:team6@cluster0.yvkcbg6.mongodb.net/"
+# mongodb_uri = "mongodb://localhost:27017"
 client = MongoClient(mongodb_uri)
 db = client['mindmapDB']
 collections = {
