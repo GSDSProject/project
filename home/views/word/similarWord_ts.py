@@ -1,5 +1,4 @@
 import uuid
-
 import numpy as np
 import requests
 from flask import request, make_response, jsonify
@@ -7,8 +6,7 @@ from flask_restx import Resource, Namespace, fields
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
-# conflict
-# define namespace #
+# define namespace
 ns = Namespace('word', description='Word operations')
 
 # MongoDB 연결 설정
@@ -46,7 +44,7 @@ def get_collection(user_type):
         return None
 
 
-def related_word(word, limit=100):
+def related_word(word, limit=50):
     word = word.lower()
     url = f"http://api.conceptnet.io/query?node=/c/en/{word}&rel=/r/RelatedTo&limit={limit}"
     response = requests.get(url)
@@ -65,7 +63,7 @@ def store_word(word, user_type):
     collection = get_collection(user_type)
     doc = collection.find_one({"word": word})
     if doc is None:
-        params = {"successes": 3, "failures": 1, "reward": 0}
+        params = {"successes": 2, "failures": 1, "reward": 0}
         doc = {
             "word": word,
             "params": params
@@ -87,9 +85,24 @@ def store_related_words(word, user_type, limit=100):
             collection.insert_one(doc)
 
 
-def add_user(word, user_id):
+def add_user(word, user_id, user_type):
     collection = get_collection('recommended')
-    collection.insert_one({"user_id": user_id, "words": [word]})
+    collection.insert_one({"user_id": user_id, "user_type": user_type, "words": [[word]], "choice": [word]})
+
+
+def get_users_recommended(user_id):
+    collection = get_collection('recommended')
+    doc = collection.find_one({"user_id": user_id})
+    previously_recommended = doc['words'][-1]
+    return previously_recommended
+
+
+def add_user_chosen(choice_word, user_id):
+    collection = get_collection('recommended')
+    doc = collection.find_one({"user_id": user_id})
+    chosen = doc['choice']
+    chosen.append(choice_word)
+    collection.update_one({"user_id": user_id}, {"$set": {"choice": chosen}})
 
 
 def recommend_words(user_id, user_type, num_recommendations=10):
@@ -101,12 +114,13 @@ def recommend_words(user_id, user_type, num_recommendations=10):
     words = collection.find({})
     word_samples = []
 
-    for word_doc in words:
-        word = word_doc["word"]
-        if word not in previously_recommended:
-            params = word_doc["params"]
-            samples = np.random.beta(params["successes"], params["failures"])
-            word_samples.append((word, samples))
+    for i in range(len(previously_recommended)):
+        for word_doc in words:
+            word = word_doc["word"]
+            if word not in previously_recommended[i]:
+                params = word_doc["params"]
+                samples = np.random.beta(params["successes"], params["failures"])
+                word_samples.append((word, samples))
 
     word_samples.sort(key=lambda x: x[1], reverse=True)
 
@@ -120,8 +134,8 @@ def store_recommend_words(user_id, recommended_words):
     doc = recommended_collection.find_one({"user_id": user_id})
     if doc:
         previously_recommended = doc['words']
-        updated_words = previously_recommended + recommended_words
-        recommended_collection.update_one({"user_id": user_id}, {"$set": {"words": updated_words}})
+        previously_recommended.append(recommended_words)
+        recommended_collection.update_one({"user_id": user_id}, {"$set": {"words": previously_recommended}})
     else:
         recommended_collection.insert_one({"user_id": user_id, "words": recommended_words})
 
@@ -146,16 +160,19 @@ def update_word_params(word, user_type, success):
     collection = get_collection(user_type)
     params = get_word_params(word, user_type)
     if success:
-        params["successes"] += 2
+        params["successes"] += 1
         params["reward"] += 1  # Increment the reward when the word is selected
     else:
-        params["failures"] += 0
+        params["failures"] += 1
     collection.update_one({"word": word}, {"$set": {"params": params}})
 
 
-def process_feedback(recommended_words, user_type, selected_word):
-    success = (selected_word in recommended_words)
-    update_word_params(selected_word, user_type, success)
+def process_feedback(recommended, user_type, choice_word):
+    for i in range(len(recommended)):
+        if recommended[i] == choice_word:
+            update_word_params(choice_word, user_type, True)
+        else:
+            update_word_params(recommended[i], user_type, False)
 
 
 def calculate_cumulative_reward(user_type):
@@ -171,6 +188,16 @@ def calculate_cumulative_reward(user_type):
     return total_reward
 
 
+def calculate_choice_num(user_type):
+    collection_user = get_collection('recommended')
+    doc = collection_user.find({"user_type": user_type})
+    total_choice = 0
+    for user_doc in doc:
+        choice_list = user_doc["choice"]
+        total_choice = len(choice_list)-1
+    return total_choice
+
+
 @ns.route('/center/<user_type>/<word>')
 @ns.doc({'parameters': [{'name': 'word', 'in': 'path', 'type': 'string', 'required': True},
                         {'name': 'user_type', 'in': 'path', 'type': 'string', 'required': True}]})
@@ -179,7 +206,7 @@ class centerWord(Resource):
         user_id = str(uuid.uuid4())
         store_word(word, user_type)
         store_related_words(word, user_type)
-        add_user(word, user_id)
+        add_user(word, user_id, user_type)
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
         store_recommend_words(user_id, recommended_words)
         response = make_response(jsonify(recommended_words))
@@ -201,12 +228,19 @@ class humanFeedback(Resource):
     def post(self, choice_word):
         user_id = request.cookies.get('user_id')
         user_type = ns.payload['user_type']
+        add_user_chosen(choice_word, user_id)
+
+        recommended = get_users_recommended(user_id)
+        process_feedback(recommended, user_type, choice_word)
+
         store_word(choice_word, user_type)
         store_related_words(choice_word, user_type)
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
-        store_recommend_words(user_id, recommended_words)
-        process_feedback(recommended_words, user_type, choice_word)
-        response = make_response(jsonify(recommended_words))
+        recommended_set = set(recommended_words)
+        recommended_set.discard(choice_word)
+        recommended_word = list(recommended_set)
+        store_recommend_words(user_id, recommended_word)
+        response = make_response(jsonify(recommended_word))
         response.set_cookie('user_id', user_id)
         return response
 
@@ -217,7 +251,8 @@ class performanceMeasure(Resource):
     @ns.expect(list_item_model)
     def post(self, user_type):
         measure = calculate_cumulative_reward(user_type)
-        response_data = {'user_type': user_type, 'performance_measure': measure}
+        total_choice = calculate_choice_num(user_type)
+        accuracy = measure / total_choice
+        response_data = {'user_type': user_type, 'performance_measure': accuracy}
         response = make_response(jsonify(response_data))
         return response
-
