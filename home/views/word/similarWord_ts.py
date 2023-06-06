@@ -1,5 +1,4 @@
 import uuid
-
 import numpy as np
 import requests
 from flask import make_response, jsonify
