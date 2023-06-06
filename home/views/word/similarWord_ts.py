@@ -236,12 +236,11 @@ class humanFeedback(Resource):
         store_word(choice_word, user_type)
         store_related_words(choice_word, user_type)
         recommended_words = recommend_words(user_id, user_type, num_recommendations=10)
-        try:
-            recommended_words.remove(choice_word)
-        except ValueError:
-            pass
-        store_recommend_words(user_id, recommended_words)
-        response = make_response(jsonify(recommended_words))
+        recommended_set = set(recommended_words)
+        recommended_set.discard(choice_word)
+        recommended_word = list(recommended_set)
+        store_recommend_words(user_id, recommended_word)
+        response = make_response(jsonify(recommended_word))
         response.set_cookie('user_id', user_id)
         return response
 
