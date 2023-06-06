@@ -194,7 +194,7 @@ def calculate_choice_num(user_type):
     total_choice = 0
     for user_doc in doc:
         choice_list = user_doc["choice"]
-        total_choice = len(choice_list)-1
+        total_choice += len(choice_list)-1
     return total_choice
 
 
