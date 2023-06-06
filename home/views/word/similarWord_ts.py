@@ -196,7 +196,7 @@ def get_average_reward(user_id, user_type, center_word):
         return total_reward / total_recommendations
 
 
-def get_overall_average_reward():
+def get_overall_ctr():
     recommended_collection = get_collection('recommended')
     total_reward = 0
     total_recommendations = 0
