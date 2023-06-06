@@ -44,7 +44,7 @@ def get_collection(user_type):
         return None
 
 
-def related_word(word, limit=100):
+def related_word(word, limit=50):
     word = word.lower()
     url = f"http://api.conceptnet.io/query?node=/c/en/{word}&rel=/r/RelatedTo&limit={limit}"
     response = requests.get(url)
