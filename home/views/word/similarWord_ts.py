@@ -96,7 +96,7 @@ def add_user(word, user_id, user_type):
 def get_users_recommended(user_id):
     collection = get_collection('recommended')
     doc = collection.find_one({"user_id": user_id})
-    previously_recommended = doc['words'][-2]
+    previously_recommended = doc['words'][-1]
     return previously_recommended
 
 
@@ -105,8 +105,6 @@ def add_user_chosen(choice_word, user_id):
     doc = collection.find_one({"user_id": user_id})
     chosen = doc['choice']
     chosen.append(choice_word)
-    words = doc['words']
-    words.append([choice_word])
     collection.update_one({"user_id": user_id}, {"$set": {"choice": chosen}})
 
 
@@ -115,14 +113,17 @@ def recommend_words(user_id, user_type, center_word, num_recommendations=10):
     recommended_collection = get_collection('recommended')
     doc = recommended_collection.find_one({"user_id": user_id})
     previously_recommended = doc['words']
+    previously_chosen = doc['choice']
     recommended_list = []
-    for i in range(len(previously_recommended)):
-        for j in previously_recommended[i]:
-            recommended_list.append(j)
+    for recommended in previously_recommended:
+        for word in recommended:
+            recommended_list.append(word)
+    for word in previously_chosen:
+        recommended_list.append(word)
+    recommended_list = list(set(recommended_list))
 
     words = collection.find({"center_word": center_word})
     word_samples = []
-
     for word_doc in words:
         word = word_doc["word"]
         if word not in recommended_list:
