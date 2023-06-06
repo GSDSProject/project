@@ -96,7 +96,7 @@ def add_user(word, user_id, user_type):
 def get_users_recommended(user_id):
     collection = get_collection('recommended')
     doc = collection.find_one({"user_id": user_id})
-    previously_recommended = doc['words'][-1]
+    previously_recommended = doc['words'][-2]
     return previously_recommended
 
 
@@ -105,6 +105,8 @@ def add_user_chosen(choice_word, user_id):
     doc = collection.find_one({"user_id": user_id})
     chosen = doc['choice']
     chosen.append(choice_word)
+    words = doc['words']
+    words.append([choice_word])
     collection.update_one({"user_id": user_id}, {"$set": {"choice": chosen}})
 
 
