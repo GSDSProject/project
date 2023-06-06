@@ -280,3 +280,4 @@ class performanceMeasure(Resource):
                          'center_word': center_word, 'performance_measure': ctr}
         response = make_response(jsonify(response_data))
         return response
+
