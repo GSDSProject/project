@@ -6,3 +6,4 @@ pymongo
 flask-pymongo
 flask-cors
 gensim
+nltk
