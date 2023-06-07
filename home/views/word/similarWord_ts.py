@@ -7,7 +7,7 @@ from flask_restx import Resource, Namespace, fields
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
-# define namespace #
+# define namespace
 ns = Namespace('word', description='Word operations')
 
 # MongoDB 연결 설정
