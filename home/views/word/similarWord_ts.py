@@ -186,6 +186,17 @@ def process_feedback(recommended, user_type, center_word, choice_word):
             update_word_params(recommended[i], user_type, center_word, False)
 
 
+def calculate_success_rate(user_type):
+    collection = get_collection(user_type)
+    successes, failures = 0, 0
+    for doc in collection.find():
+        successes += doc["params"]["successes"]
+        failures += doc["params"]["failures"]
+    if successes + failures == 0:
+        return 0  # To avoid division by zero
+    return successes / (successes + failures)
+
+
 def get_average_reward(user_id, user_type, center_word):
     recommended_collection = get_collection('recommended')
     doc = recommended_collection.find_one({"user_id": user_id})
@@ -223,6 +234,43 @@ def get_overall_ctr():
         return None
     else:
         return total_reward / total_recommendations
+
+
+def calculate_ctr(user_type):
+    recommended_collection = get_collection('recommended')
+
+    clicks, impressions = 0, 0
+    for doc in recommended_collection.find({"user_type": user_type}):
+        clicks += len(doc["choice"])
+        impressions += sum(len(a_words) for a_words in doc["words"])
+
+    if impressions == 0:
+        return 0  # Avoid division by zero
+    return clicks / impressions
+
+
+def calculate_expectation_of_regret(user_type):
+    collection = get_collection(user_type)
+
+    # Find the best action
+    best_success_rate = 0
+    for doc in collection.find():
+        success_rate = doc["params"]["successes"] / (doc["params"]["successes"] + doc["params"]["failures"])
+        if success_rate > best_success_rate:
+            best_success_rate = success_rate
+
+    # Calculate the expectation of regret
+    total_regret = 0
+    total_count = 0
+    for doc in collection.find():
+        success_rate = doc["params"]["successes"] / (doc["params"]["successes"] + doc["params"]["failures"])
+        regret = best_success_rate - success_rate
+        total_regret += regret
+        total_count += 1
+
+    if total_count == 0:
+        return 0  # To avoid division by zero
+    return total_regret / total_count
 
 
 @ns.route('/center/<user_type>/<word>')
@@ -276,16 +324,18 @@ class humanFeedback(Resource):
         return response
 
 
-@ns.route('/performance')
-@ns.doc({'parameters': [{}]})
+@ns.route('/performance/<user_type>')
+@ns.doc({'parameters': [{'name': 'user_type', 'in': 'path', 'type': 'string', 'required': True}]})
 class performanceMeasure(Resource):
-    @ns.expect(list_item_model)
-    def post(self):
-        user_id = ns.payload['user_id']
-        user_type = ns.payload['user_type']
-        center_word = ns.payload['center_word']
-        ctr = get_average_reward(user_id, user_type, center_word)
-        response_data = {'user_id': user_id, 'user_type': user_type,
-                         'center_word': center_word, 'performance_measure': ctr}
+    def post(self, user_type):
+        # ctr = get_average_reward(user_id, user_type, center_word)
+        success_rate = calculate_success_rate(user_type)
+        ctr = calculate_ctr(user_type)
+        expected_regret = calculate_expectation_of_regret(user_type)
+        response_data = {'user_type': user_type,
+                         'overall_success_rate': success_rate,
+                         'CTR': ctr,
+                         'expected_regret': expected_regret
+                         }
         response = make_response(jsonify(response_data))
         return response
